@@ -2,6 +2,11 @@ import tkinter as tk
 from pynput import keyboard, mouse
 import time
 import ctypes
+from ctypes import windll, Structure, c_long, byref
+
+
+class POINT(Structure):
+    _fields_ = [("x", c_long), ("y", c_long)]
 
 
 class ScreenHighlighter:
@@ -24,10 +29,16 @@ class ScreenHighlighter:
         self.alt_pressed = False
         self.shift_pressed = False
 
-        # Get the scaling factor
-        user32 = ctypes.windll.user32
+        # Get the scaling factors
+        user32 = windll.user32
         user32.SetProcessDPIAware()
-        self.scaling_factor = user32.GetDpiForSystem() / 96.0
+        self.dpi = user32.GetDpiForSystem()
+        self.scale_x = self.dpi / 96.0
+        self.scale_y = self.dpi / 96.0
+
+        # Manual offset adjustments (you can fine-tune these)
+        self.offset_x = 0
+        self.offset_y = 0
 
         self.keyboard_listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
         self.mouse_listener = mouse.Listener(on_move=self.on_move)
@@ -57,10 +68,18 @@ class ScreenHighlighter:
         if not self.highlighting:
             self.last_position = None
 
+    def get_cursor_pos(self):
+        pt = POINT()
+        windll.user32.GetCursorPos(byref(pt))
+        return pt.x, pt.y
+
     def on_move(self, x, y):
-        # Adjust coordinates based on scaling factor
-        x = int(x * self.scaling_factor)
-        y = int(y * self.scaling_factor)
+        # Get the actual cursor position
+        cursor_x, cursor_y = self.get_cursor_pos()
+
+        # Apply scaling and offset
+        x = int(cursor_x * self.scale_x) + self.offset_x
+        y = int(cursor_y * self.scale_y) + self.offset_y
 
         if self.highlighting:
             if self.last_position:
