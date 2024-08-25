@@ -29,6 +29,9 @@ class ScreenHighlighter:
         self.keyboard_listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
         self.keyboard_listener.start()
 
+        self.last_redraw_time = 0
+        self.redraw_interval = 0.1  # Redraw at most every 0.1 seconds
+
     def on_press(self, key):
         if key == keyboard.Key.ctrl_l:
             self.ctrl_pressed = True
@@ -67,24 +70,24 @@ class ScreenHighlighter:
 
         try:
             while True:
+                current_time = time.time()
+
                 if self.highlighting:
                     x, y = self.get_cursor_pos()
                     if self.last_position:
                         self.draw_line(dc, self.last_position[0], self.last_position[1], x, y)
-                        self.lines.append((time.time(), x, y))
+                        self.lines.append((current_time, x, y))
                     self.last_position = (x, y)
-                else:
-                    self.last_position = None
 
                 # Fade out old lines
-                current_time = time.time()
                 self.lines = [line for line in self.lines if current_time - line[0] <= 5]
 
-                # Redraw screen to clear old lines
-                if not self.highlighting:
+                # Redraw screen to clear old lines, but only if necessary and not too frequently
+                if (not self.highlighting and self.lines and
+                        current_time - self.last_redraw_time > self.redraw_interval):
                     user32.RedrawWindow(None, None, None,
-                                        win32con.RDW_ERASE | win32con.RDW_INVALIDATE |
-                                        win32con.RDW_ALLCHILDREN | win32con.RDW_UPDATENOW)
+                                        win32con.RDW_INVALIDATE | win32con.RDW_ALLCHILDREN)
+                    self.last_redraw_time = current_time
 
                 time.sleep(0.01)  # Small delay to reduce CPU usage
 
