@@ -1,6 +1,7 @@
 import tkinter as tk
 from pynput import keyboard, mouse
 import time
+import ctypes
 
 
 class ScreenHighlighter:
@@ -8,8 +9,8 @@ class ScreenHighlighter:
         self.root = tk.Tk()
         self.root.attributes("-topmost", True)
         self.root.attributes("-fullscreen", True)
-        self.root.attributes("-alpha", 1.0)  # Fully opaque
-        self.root.attributes("-transparentcolor", "white")  # Make white transparent
+        self.root.attributes("-alpha", 1.0)
+        self.root.attributes("-transparentcolor", "white")
         self.root.config(cursor="none")
 
         self.canvas = tk.Canvas(self.root, highlightthickness=0, bg="white")
@@ -22,6 +23,11 @@ class ScreenHighlighter:
         self.ctrl_pressed = False
         self.alt_pressed = False
         self.shift_pressed = False
+
+        # Get the scaling factor
+        user32 = ctypes.windll.user32
+        user32.SetProcessDPIAware()
+        self.scaling_factor = user32.GetDpiForSystem() / 96.0
 
         self.keyboard_listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
         self.mouse_listener = mouse.Listener(on_move=self.on_move)
@@ -52,6 +58,10 @@ class ScreenHighlighter:
             self.last_position = None
 
     def on_move(self, x, y):
+        # Adjust coordinates based on scaling factor
+        x = int(x * self.scaling_factor)
+        y = int(y * self.scaling_factor)
+
         if self.highlighting:
             if self.last_position:
                 line = self.canvas.create_line(self.last_position[0], self.last_position[1], x, y,
